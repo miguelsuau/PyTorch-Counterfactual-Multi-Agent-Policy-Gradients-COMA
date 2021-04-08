@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from env_FindGoals import EnvFindGoals
 import matplotlib.pyplot as plt
+from warehouse.warehouse import Warehouse
 
 class Flatten(nn.Module):
     def forward(self, input):
@@ -13,15 +14,15 @@ class Actor(nn.Module):
     def __init__(self, N_action):
         super(Actor, self).__init__()
         self.N_action = N_action
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1)
-        self.flat1 = Flatten()
-        self.fc1 = nn.Linear(16, 32)
-        self.fc2 = nn.Linear(32, self.N_action)
+        # self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1)
+        # self.flat1 = Flatten()
+        self.fc1 = nn.Linear(146, 64)
+        self.fc2 = nn.Linear(64, self.N_action)
 
     def get_action(self, h):
-        h1 = F.relu(self.conv1(h))
-        h1 = self.flat1(h1)
-        h1 = F.relu(self.fc1(h1))
+        # h1 = F.relu(self.conv1(h))
+        # h1 = self.flat1(h1)
+        h1 = F.relu(self.fc1(h))
         h = F.softmax(self.fc2(h1), dim=1)
         m = Categorical(h.squeeze(0))
         return m.sample().item(), h
@@ -30,19 +31,19 @@ class Critic(nn.Module):
     def __init__(self, N_action):
         super(Critic, self).__init__()
         self.N_action = N_action
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1)
-        self.flat1 = Flatten()
-        self.conv2 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1)
+        # self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1)
+        # self.flat1 = Flatten()
+        # self.conv2 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1)
         self.flat2 = Flatten()
-        self.fc1 = nn.Linear(32, 64)
-        self.fc2 = nn.Linear(64, N_action*N_action)
+        self.fc1 = nn.Linear(292, 128)
+        self.fc2 = nn.Linear(128, N_action*N_action)
 
     def get_value(self, s1, s2):
-        h1 = F.relu(self.conv1(s1))
-        h1 = self.flat1(h1)
-        h2 = F.relu(self.conv2(s2))
-        h2 = self.flat2(h2)
-        h = torch.cat([h1, h2], 1)
+        # h1 = F.relu(self.conv1(s1))
+        # h1 = self.flat1(h1)
+        # h2 = F.relu(self.conv2(s2))
+        # h2 = self.flat2(h2)
+        h = torch.cat([s1, s2], 1)
         x = F.relu(self.fc1(h))
         x = self.fc2(x)
         return x
@@ -63,7 +64,7 @@ class COMA(object):
 
     def img_to_tensor(self, img):
         img_tensor = torch.FloatTensor(img)
-        img_tensor = img_tensor.permute(2, 0, 1)
+        # img_tensor = img_tensor.permute(2, 0, 1)
         return img_tensor
 
     def cross_prod(self, pi_a1, pi_a2):
@@ -135,10 +136,11 @@ class COMA(object):
 
 if __name__ == '__main__':
     torch.set_num_threads(1)
-    env = EnvFindGoals()
-    max_epi_iter = 1000
+    # env = EnvFindGoals()
+    env = Warehouse()
+    max_epi_iter = 10000
     max_MC_iter = 200
-    agent = COMA(N_action=5)
+    agent = COMA(N_action=4)
     train_curve = []
     for epi_iter in range(max_epi_iter):
         env.reset()
@@ -152,8 +154,10 @@ if __name__ == '__main__':
         acc_r = 0
         for MC_iter in range(max_MC_iter):
             # env.render()
-            obs1 = env.get_agt1_obs()
-            obs2 = env.get_agt2_obs()
+            # obs1 = env.get_agt1_obs()
+            # obs2 = env.get_agt2_obs()
+            obs1 = env._get_observation(0)
+            obs2 = env._get_observation(1)
             o1_list.append(obs1)
             o2_list.append(obs2)
             action1, pi_a1, action2, pi_a2 = agent.get_action(obs1, obs2)
